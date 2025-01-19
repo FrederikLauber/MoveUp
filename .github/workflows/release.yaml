@@ -1,0 +1,47 @@
+name: Release version
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Create Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Get Version
+        run: |
+          $version = "${{ github.event.release.tag_name }}".TrimStart("v")
+          echo "VERSION=$version" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install Inno Setup
+        run: choco install innosetup --yes
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create Installer with Inno Setup
+        run: ISCC installer.iss
+        env:
+          VERSION: ${{ env.VERSION }}
+
+      - name: Upload Installer Artifact
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./Output/setup.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
